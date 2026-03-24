@@ -9,7 +9,7 @@
     }
   },
   "sprite": "https://tiles.basemaps.cartocdn.com/gl/positron-gl-style/sprite",
-  "glyphs": "https://api.maptiler.com/fonts/{fontstack}/{range}.pbf?key=YOUR_MAPTILER_KEY",
+  "glyphs": "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf",
   "layers": [
     {
       "id": "background",
