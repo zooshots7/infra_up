@@ -9,6 +9,22 @@ import Link from "next/link";
 // FIX #5: Pull API base URL from env so nothing hardcodes localhost.
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
+// Carto's glyph server returns PBF type 4 (Devanagari/complex script) which
+// MapLibre 5.x cannot parse, producing console warnings for every character.
+// Fix: fetch the style JSON, replace the glyphs URL with the free MapLibre demo
+// tiles server that serves the correct SDF format, then pass the patched object.
+const GLYPH_URL = 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf';
+
+async function fetchPatchedStyle(theme: "dark" | "light"): Promise<object> {
+  const url = theme === "dark"
+    ? 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
+    : 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
+  const res = await fetch(url);
+  const style = await res.json();
+  style.glyphs = GLYPH_URL;
+  return style;
+}
+
 // Placeholder for user to inject their Mapbox token
 const MAPBOX_TOKEN = "YOUR_MAPBOX_ACCESS_TOKEN";
 
@@ -288,18 +304,16 @@ export default function InfraMap() {
   // Mount Map
   useEffect(() => {
     if (!mapContainer.current) return;
-    if (mapRef.current) return; 
+    if (mapRef.current) return;
 
-    const styleUrl = theme === "dark" 
-        ? `https://api.mapbox.com/styles/v1/mapbox/dark-v11/manage?access_token=${MAPBOX_TOKEN}` 
-        : `https://api.mapbox.com/styles/v1/mapbox/light-v11/manage?access_token=${MAPBOX_TOKEN}`;
-    const fallbackStyle = theme === "dark"
-        ? '/styles/dark-matter.json'
-        : '/styles/positron.json';
+    // Fetch Carto style with glyphs URL patched to demotiles (correct SDF format,
+    // no key required) before passing to MapLibre to silence Devanagari glyph errors.
+    fetchPatchedStyle(theme).then(mapStyle => {
+    if (!mapContainer.current) return;
 
     const map = new maplibregl.Map({
       container: mapContainer.current,
-      style: MAPBOX_TOKEN !== "YOUR_MAPBOX_ACCESS_TOKEN" ? styleUrl : fallbackStyle,
+      style: mapStyle as maplibregl.StyleSpecification,
       center: [80.9462, 26.8467], 
       zoom: 12, 
       pitch: 45, 
@@ -347,20 +361,21 @@ export default function InfraMap() {
       mapRef.current = null;
       setMapLoaded(false);
     };
+    }); // end fetchPatchedStyle.then()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); 
+  }, []);
 
-  // Theme Sync
+  // Theme Sync — also patch glyphs URL on theme change
   useEffect(() => {
     if (!mapRef.current || !mapLoaded) return;
-    const styleUrl = theme === "dark" 
-        ? `https://api.mapbox.com/styles/v1/mapbox/dark-v11/manage?access_token=${MAPBOX_TOKEN}` 
-        : `https://api.mapbox.com/styles/v1/mapbox/light-v11/manage?access_token=${MAPBOX_TOKEN}`;
-    const fallbackStyle = theme === "dark"
-        ? '/styles/dark-matter.json'
-        : '/styles/positron.json';
-    mapRef.current.setStyle(MAPBOX_TOKEN !== "YOUR_MAPBOX_ACCESS_TOKEN" ? styleUrl : fallbackStyle);
+    fetchPatchedStyle(theme).then(mapStyle => {
+      if (!mapRef.current) return;
+      mapRef.current.setStyle(mapStyle as maplibregl.StyleSpecification);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [theme, mapLoaded]);
+
+
 
   // FIX #5: Use API_BASE so SSE works in any environment, not just localhost.
   useEffect(() => {
