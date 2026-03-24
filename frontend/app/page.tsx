@@ -1,5 +1,5 @@
-// FIX: maplibre-gl accesses browser APIs (WebGL) on import — SSR will crash.
-// dynamic import with ssr:false ensures it only runs in the browser.
+"use client";
+// Next.js App Router: dynamic({ ssr: false }) requires a Client Component wrapper.
 import dynamic from "next/dynamic";
 
 const InfraMap = dynamic(() => import("@/components/InfraMap"), {

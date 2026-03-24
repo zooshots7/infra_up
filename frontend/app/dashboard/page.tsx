@@ -1,7 +1,5 @@
-// FIX: DeckGL accesses WebGL/WebGPU (maxTextureDimension2D) on import, which crashes
-// during SSR because the server has no GPU context. Math.random() at module level in
-// the dashboard component also caused React hydration mismatches.
-// Solution: dynamic import with ssr: false — the dashboard only ever runs client-side.
+"use client";
+// Next.js App Router: dynamic({ ssr: false }) requires a Client Component wrapper.
 import dynamic from "next/dynamic";
 
 const Dashboard = dynamic(() => import("@/components/DashboardClient"), {
